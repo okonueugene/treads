@@ -1,0 +1,81 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+    --color-brand: #00AEEF;
+    --color-brand-hover: #008fc7;
+    --color-accent: #F7941D;
+    --color-accent-hover: #d67d0f;
+    --color-surface: #000000;
+    --color-surface-card: #2D2D2D;
+    --color-surface-muted: #333333;
+    --color-surface-silver: #A7A9AC;
+}
+
+@layer base {
+    body {
+        @apply bg-surface text-slate-100 antialiased;
+    }
+}
+
+@layer components {
+    .page-container {
+        @apply mx-auto max-w-7xl px-4 sm:px-6 lg:px-8;
+    }
+
+    .card {
+        @apply rounded-xl border border-surface-border/80 bg-surface-card shadow-card;
+    }
+
+    .card-hover {
+        @apply card transition-all duration-300 hover:border-brand-500/40 hover:shadow-glow;
+    }
+
+    .btn-primary {
+        @apply inline-flex items-center justify-center rounded-xl bg-brand-500 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:bg-brand-600 hover:scale-[1.02] focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 focus:ring-offset-black active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none;
+    }
+
+    .btn-secondary {
+        @apply inline-flex items-center justify-center rounded-xl border border-surface-border bg-surface-muted/80 px-4 py-2.5 text-sm font-semibold text-surface-silver transition-all duration-200 hover:border-brand-500/50 hover:bg-surface-muted focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 focus:ring-offset-black;
+    }
+
+    .btn-accent {
+        @apply inline-flex items-center justify-center rounded-xl bg-accent-500 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:bg-accent-600 hover:scale-[1.02] focus:outline-none focus:ring-2 focus:ring-accent-500 focus:ring-offset-2 focus:ring-offset-black active:scale-[0.98];
+    }
+
+    .input-field {
+        @apply w-full rounded-lg border-surface-border bg-surface-muted/80 text-white shadow-sm placeholder:text-surface-silver/60 focus:border-brand-500 focus:ring-brand-500;
+    }
+
+    .skeleton {
+        @apply animate-shimmer rounded-lg bg-gradient-to-r from-surface-card via-surface-muted to-surface-card bg-[length:200%_100%];
+    }
+
+    .nav-glass {
+        @apply sticky top-0 z-40 border-b border-surface-border/60 bg-black/85 backdrop-blur-xl;
+    }
+}
+
+::view-transition-group(*),
+::view-transition-old(*),
+::view-transition-new(*) {
+    animation-duration: 0.25s;
+    animation-timing-function: cubic-bezier(0.19, 1, 0.22, 1);
+}
+
+::view-transition-old(root) {
+    animation-name: fade-out;
+}
+
+::view-transition-new(root) {
+    animation-name: fade-in-view;
+}
+
+@keyframes fade-out {
+    to { opacity: 0; }
+}
+
+@keyframes fade-in-view {
+    from { opacity: 0; }
+}

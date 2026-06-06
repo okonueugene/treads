@@ -1,0 +1,27 @@
+make,model,year_from,year_to,width,aspect_ratio,rim_diameter,position,trim
+Toyota,Corolla,2015,2024,195,65,15,all,LE
+Toyota,Corolla,2015,2024,205,55,16,all,SE
+Honda,Civic,2016,2024,215,55,16,all,Sport
+Honda,Civic,2016,2024,225,40,18,all,Type R
+Ford,F-150,2015,2024,275,65,18,all,XLT
+Ford,F-150,2015,2024,275,55,20,all,Lariat
+Chevrolet,Silverado 1500,2015,2024,265,70,17,all,LT
+Chevrolet,Silverado 1500,2015,2024,275,60,20,all,High Country
+Nissan,Altima,2016,2024,215,60,16,all,S
+Nissan,Altima,2016,2024,235,40,19,all,SR
+BMW,3 Series,2015,2024,225,45,17,all,330i
+BMW,3 Series,2015,2024,225,40,18,all,M340i
+Mercedes-Benz,C-Class,2015,2024,225,45,17,all,C300
+Mercedes-Benz,C-Class,2015,2024,245,40,18,all,AMG C43
+Audi,A4,2017,2024,225,50,17,all,Premium
+Audi,A4,2017,2024,245,40,18,all,Prestige
+Hyundai,Elantra,2017,2024,195,65,15,all,SE
+Hyundai,Elantra,2017,2024,225,40,18,all,N Line
+Kia,Optima,2016,2023,215,55,17,all,LX
+Kia,Optima,2016,2023,235,45,18,all,SX
+Subaru,Outback,2015,2024,225,65,17,all,Premium
+Subaru,Outback,2015,2024,225,60,18,all,Limited
+Jeep,Wrangler,2015,2024,245,75,17,all,Sport
+Jeep,Wrangler,2015,2024,255,75,17,all,Rubicon
+Tesla,Model 3,2018,2024,235,45,18,all,Long Range
+Tesla,Model 3,2018,2024,235,40,19,all,Performance
