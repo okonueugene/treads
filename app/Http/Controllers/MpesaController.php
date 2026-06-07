@@ -108,7 +108,6 @@ class MpesaController extends Controller
             'paid_at' => $payment->paid_at,
         ]);
     }
-    }
 
     public function initiate(Request $request)
     {
