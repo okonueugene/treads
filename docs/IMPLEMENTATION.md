@@ -1,6 +1,6 @@
 # TreadMart — Customer Journey Implementation Status
 
-Living document tracking what is **in the codebase today** vs what the [customer journey plan](.cursor/plans/customer_journey_screens_101d89f8.plan.md) still requires.
+Living document tracking what is **in the codebase today** vs what remains.
 
 **Last audited:** 7 June 2026  
 **Test suite:** 37 tests passing (8 in `CustomerJourneySearchTest`)
@@ -11,254 +11,220 @@ Living document tracking what is **in the codebase today** vs what the [customer
 
 | Phase | Scope | Status |
 |-------|--------|--------|
-| **0** | Schema for discovery + used tires + requests | **Done** |
-| **0+** | Payments / M-Pesa schema + API | **Partial** — tables + STK API; UI/env gaps |
-| **1** | Homepage + shop search (Stages 1–3) | **Done** |
-| **2** | Purchase loop (Stages 4–11) | **Mostly not started** — checkout/payment partially wired |
+| **0** | Schema — products, orders, payments, fitment, reviews, addresses | ✅ **Done** |
+| **1** | Homepage + shop search (Stages 1–3) | ✅ **Done** |
+| **2** | Purchase loop — PDP, cart, checkout, payment (Stages 4–8) | ✅ **Done** |
+| **3** | Order tracking + delivery + post-purchase (Stages 9–11) | ✅ **Done** |
+| **4** | Customer dashboard (`/account/*`) | ✅ **Done** |
+| **5** | STK polling UI + payment-status endpoint | ❌ **Not started** |
+| **6** | Vendor revenue reports + admin analytics | ❌ **Not started** |
+| **7** | Notifications (email + in-app bell) | ❌ **Not started** |
 
 ---
 
 ## Journey overview
 
-| Stage | Step | Status | Summary |
-|-------|------|--------|---------|
+| Stage | Step | Status | Notes |
+|-------|------|--------|-------|
 | 1 | Discovery (homepage) | ✅ **Done** | Dual vehicle + size search on `/` |
 | 2 | Tire search | ✅ **Done** | Vehicle → size chips → `/shop?size=…` |
-| 3 | Browse results | ✅ **Done** | Filters, new/used cards, tire-request CTA |
-| 4 | Product details | 🟡 **Partial** | Basic PDP; no used-tire/vendor/trust blocks |
-| 5 | Cart | 🟡 **Partial** | Session cart, qty controls, KES totals |
-| 6 | Checkout | 🟡 **Partial** | US-style address; M-Pesa option on same page |
-| 7 | Payment | 🟡 **Partial** | M-Pesa STK API + checkout AJAX; no Paybill/bank UI |
-| 8 | Order confirmation | 🟡 **Partial** | Order page exists; not a dedicated paid confirmation |
-| 9 | Order tracking | ❌ **Not started** | No history, no multi-step timeline |
-| 10 | Delivery | ❌ **Not started** | No confirm-receipt |
-| 11 | Post-purchase | ❌ **Not started** | No reviews or Buy Again |
-| — | Customer dashboard | ❌ **Not started** | No `/account/*` (orders, requests, addresses) |
+| 3 | Browse results | ✅ **Done** | Filters, new/used cards, star ratings, tire-request CTA |
+| 4 | Product details | ✅ **Done** | Used-tire block, vendor trust block, multi-image gallery, reviews |
+| 5 | Cart | ✅ **Done** | Session cart, Remove button, Saved for Later, KES totals |
+| 6 | Checkout | ✅ **Done** | Kenya fields (county/town/landmark), delivery method, M-Pesa/Paybill |
+| 7 | Payment | ✅ **Done** | STK Push + phone normalization; callback syncs order status |
+| 8 | Order confirmation | ✅ **Done** | `ORD-YYYY-NNNNN` number, payment status, KES totals |
+| 9 | Order tracking | ✅ **Done** | Multi-step timeline; per-vendor item status |
+| 10 | Delivery | ✅ **Done** | Confirm receipt action |
+| 11 | Post-purchase | ✅ **Done** | Product + vendor reviews, Buy Again |
+| — | Customer dashboard | ✅ **Done** | `/account`: profile, addresses, orders, reviews, tire-requests |
+| — | No-results tire request | ✅ **Done** | Request form → `tire_requests` table |
 
 ---
 
-## Phase 0 — Core schema
-
-### ✅ Done
+## Phase 0 — Core schema ✅
 
 | Item | Location |
 |------|----------|
-| Used/new product fields (`condition`, `condition_grade`, tread, DOT, defects, `is_verified`, `sold_count`) | `database/migrations/2026_06_07_100000_add_used_tire_fields_to_products_table.php`, `app/Models/Product.php` |
-| `tire_requests` table + model | `database/migrations/2026_06_07_100001_create_tire_requests_table.php`, `app/Models/TireRequest.php` |
-| `fitment_type` on `fitment_data` (`oem` / `upgrade`) | `database/migrations/2026_06_07_100002_add_fitment_type_to_fitment_data_table.php` |
-| CSV importer accepts new product fields | `app/Services/ProductCsvImporter.php` |
+| Products (new + used fields: condition, tread, DOT, defects, is_verified, sold_count) | `migrations/2026_06_07_100000_add_used_tire_fields_to_products_table.php` |
+| `images` JSON column on products (multi-photo) | `migrations/2026_06_07_210000_add_images_to_products_table.php` |
+| `tire_requests` table | `migrations/2026_06_07_100001_create_tire_requests_table.php` |
+| `fitment_type` on `fitment_data` (oem / upgrade) | `migrations/2026_06_07_100002_add_fitment_type_to_fitment_data_table.php` |
+| Orders + order items (multi-vendor, commission snapshot) | `create_orders_table.php`, `create_order_items_table.php` |
+| `payments` + `mpesa_transactions` | `create_payments_table.php`, `create_mpesa_transactions_table.php` |
+| `reviews` table (product + vendor) | `create_reviews_table.php` |
+| `addresses` table | `create_addresses_table.php` |
+| Stripe events audit log | `create_stripe_events_table.php` |
 | `format_kes()` helper | `app/helpers.php` |
-| Test factories (`Product`, `Brand`) | `database/factories/` |
-| Orders + order items (multi-vendor snapshots) | `database/migrations/2026_06_06_144415_create_orders_table.php`, `create_order_items_table.php` |
-| Order payment snapshot fields (`payment_status`, `stripe_session_id`) | `database/migrations/2026_06_06_150211_add_payment_fields_to_orders_table.php` |
-| Stripe webhook audit log | `database/migrations/2026_06_06_185300_create_stripe_events_table.php` |
-
-### 🟡 Partial — payments schema (added after Phase 1)
-
-| Item | Location | Gap |
-|------|----------|-----|
-| `payments` table | `database/migrations/2026_06_07_013000_create_payments_table.php`, `app/Models/Payment.php` | Not linked from `Order` model; `payment_status` on order not updated from M-Pesa callback consistently |
-| `mpesa_transactions` table | `database/migrations/2026_06_07_013100_create_mpesa_transactions_table.php`, `app/Models/MpesaTransaction.php` | Callback links payment by phone+amount heuristic (fragile) |
-
-### ❌ Still missing (schema)
-
-| Item | Needed for |
-|------|------------|
-| `addresses` table | Saved customer addresses |
-| `reviews` table | Product + vendor ratings |
-| `order_items.vendor_status`, `tracking_number` | Per-vendor shipment tracking |
-| Product media (multi-photo) | Used-tire verification gallery — Spatie MediaLibrary installed, not wired |
-| Vendor notification on `tire_requests` | Alert vendors when customer requests a size |
 
 ---
 
 ## Phase 1 — Discovery & search (Stages 1–3) ✅
 
-### Stage 1 — Homepage
-
 | Feature | Implementation |
 |---------|----------------|
-| Vehicle search (Make → Model → Year) | `resources/views/components/⚡vehicle-size-finder.blade.php` |
-| Recommended size chips (OEM first) | `app/Services/FitmentService.php` |
-| Tire size search (compact) | `livewire:tire-search` with `compact` prop on `resources/views/home/index.blade.php` |
-| Featured products below search | `resources/views/home/index.blade.php` |
-| `/fitment` → `/#vehicle-search` | `routes/web.php` |
-| Nav “Find by Vehicle” | `resources/views/layouts/navigation.blade.php` |
+| Vehicle search (Make → Model → Year → size chips) | `components/⚡vehicle-size-finder.blade.php`, `FitmentService` |
+| Tire size direct search (compact on home, full on shop) | `components/⚡tire-search.blade.php` |
+| Condition, brand, season, price, grade filters | `tire-search-filters.blade.php` |
+| Sort (price, newest, sold, name) on desktop + mobile | `⚡tire-search.blade.php` |
+| Star ratings on product cards | `components/product-card.blade.php` |
+| New vs used badge + vendor name on cards | `components/product-card.blade.php` |
+| No-results → Request Tire form → `tire_requests` | `⚡tire-search.blade.php` `submitTireRequest()` |
+| `/fitment` redirect | `routes/web.php` |
 
-### Stage 2 — Tire search routing
-
-| Feature | Implementation |
-|---------|----------------|
-| Size chip → shop deep link | `route('shop.index', ['size' => …, 'make' => …])` |
-| URL params on shop mount | `resources/views/shop/index.blade.php` → `⚡tire-search` |
-| Vehicle-only params → size picker banner | `⚡tire-search.blade.php` + `FitmentService` |
-| Shared fitment logic | `app/Services/FitmentService.php` |
-| Legacy fitment checker refactored | `resources/views/components/⚡fitment-checker.blade.php` |
-
-### Stage 3 — Browse & filter
-
-| Feature | Implementation |
-|---------|----------------|
-| Condition filter (new / used) | `⚡tire-search.blade.php`, `tire-search-filters.blade.php` |
-| Brand multi-select | ✅ |
-| Season multi-select | ✅ |
-| Price range (KES min/max) | ✅ |
-| Used condition grade | ✅ |
-| Sort (price, newest, sold, name) | ✅ |
-| New vs used product cards + vendor | `resources/views/components/product-card.blade.php` |
-| Shop grid: View Details only | `show-add-to-cart="false"` on shop |
-| No-results → Request Tire form | Saves to `tire_requests` via `submitTireRequest()` |
-| KES on listings + cart + PDP | `format_kes()` — **see currency note below** |
-
-### Tests
-
-`tests/Feature/CustomerJourneySearchTest.php` (8 tests):
-
-- Homepage dual search
-- Fitment redirect
-- Shop `?size=225/45R17`
-- Condition filter
-- Tire request save
-- Vehicle size finder chips
-- Compact search redirect
-- Shop vehicle size picker
-
-### Minor Phase 1 gaps
-
-| Gap | Priority |
-|-----|----------|
-| Predefined width/profile/rim dropdowns (README §5.1) | Low |
-| Star ratings on cards | Low — needs reviews module |
-| Vendor notification on tire request | Medium |
-| Used-tire demo data in seeder | Low — seeder still lists all as new |
-| Admin fitment CSV re-upload UI | Low |
+**Tests:** `tests/Feature/CustomerJourneySearchTest.php` — 8 tests covering homepage dual search, fitment redirect, shop size param, condition filter, tire request save, size finder chips, compact search, vehicle size picker.
 
 ---
 
-## Phase 2 — Purchase loop
+## Phase 2 — Purchase loop (Stages 4–8) ✅
 
-### P2 — Product details (Stage 4) 🟡 Partial
+### Stage 4 — Product detail page
 
 **File:** `resources/views/products/show.blade.php`
 
-| Done | Missing |
-|------|---------|
-| Brand, KES price, size, season, load/speed, stock | Used-tire block (condition, tread, DOT, mileage, defects) |
-| Description, add-to-cart with qty | Vendor info block (shop name, rating, sold count) |
-| Related products | `is_verified` badge, DOT age warning (>6 yrs) |
-| | Buy Now, Save for Later |
-| | Multi-image gallery |
+| Feature | Notes |
+|---------|-------|
+| Brand, KES price, size, season, load/speed, stock | ✅ |
+| Used-tire block (condition grade, tread depth, DOT date, mileage, defects) | ✅ |
+| `is_verified` trust badge | ✅ |
+| Vendor info block (shop name, avg rating, review count, sold count) | ✅ — uses `User::averageVendorRating()` / `vendorReviewCount()` |
+| Multi-image gallery (main image + thumbnail strip, Alpine.js) | ✅ — `images` JSON column; `Product::allImages()` |
+| Visual star ratings (product + vendor) | ✅ |
+| Customer reviews section | ✅ |
+| Add to Cart + Buy Now + Save for Later | ✅ |
+| Related products | ✅ |
 
----
-
-### P3 — Cart (Stage 5) 🟡 Partial
+### Stage 5 — Cart
 
 **Files:** `app/Services/CartService.php`, `resources/views/cart/index.blade.php`
 
-| Done | Missing |
-|------|---------|
-| Session cart (add / update / remove) | Group lines by vendor |
-| Quantity +/- controls | Vendor name per line |
-| KES line totals and subtotal | New vs used badge on lines |
-| Proceed to checkout | Stock re-check warning before checkout |
+| Feature | Notes |
+|---------|-------|
+| Session cart (add / qty update / remove) | ✅ |
+| Explicit ✕ Remove button per line | ✅ |
+| Saved for Later section | ✅ |
+| KES line totals and subtotal | ✅ |
+| New vs used badge on cart lines | ✅ |
+| Vendor name per line | ✅ |
+| Proceed to Checkout CTA | ✅ |
 
----
+### Stages 6–7 — Checkout + payment
 
-### P4 — Checkout + payment (Stages 6–7) 🟡 Partial
+**Files:** `resources/views/orders/checkout.blade.php`, `OrderController`, `OrderService`, `MpesaController`
 
-**Files:** `resources/views/orders/checkout.blade.php`, `app/Http/Controllers/OrderController.php`, `app/Services/OrderService.php`, `app/Http/Controllers/MpesaController.php`, `app/Http/Controllers/PaymentController.php`
+| Feature | Notes |
+|---------|-------|
+| Kenya shipping fields: name, phone, county, town, address, landmark | ✅ |
+| Delivery method: pickup / home delivery | ✅ |
+| Payment method: M-Pesa Express (STK) / M-Pesa Paybill / Bank transfer | ✅ |
+| AJAX checkout: create order → initiate payment → redirect | ✅ — proper error handling, button disable |
+| M-Pesa phone normalization (`07…` / `+254…` / `254…` → `254XXXXXXXXX`) | ✅ — `MpesaController::normalizePhone()` |
+| STK Push (Daraja OAuth + stkpush) | ✅ — sandbox SSL `withoutVerifying()` |
+| M-Pesa Paybill: show business number + account + amount | ✅ |
+| Manual M-Pesa: submit transaction code | ✅ |
+| `payments` + `mpesa_transactions` persisted | ✅ |
+| Daraja callback updates `Payment` + `Order.payment_status` | ✅ — linked via `checkout_request_id` |
+| Order confirmation redirect (`/orders/{order}/confirmation`) | ✅ — JS bug fixed |
+| All MPESA env vars documented in `.env.example` | ✅ |
 
-| Done | Missing |
-|------|---------|
-| Shipping form (name, address, city, state, ZIP, phone, notes) | Kenya fields: county, town, landmark |
-| Two-step UI hint (Shipping → Payment) | Delivery method: pickup vs home delivery |
-| Payment method radio: M-Pesa STK / Stripe | M-Pesa Paybill (manual transaction code) |
-| AJAX: create order → initiate STK → redirect to order | Bank transfer option |
-| `POST /payments/mpesa/initiate` — Daraja OAuth + STK push | `MPESA_*` vars not in `.env.example` |
-| `POST /payments/mpesa/callback` — parses STK callback, updates `Payment` + order `status` | No payment-status polling endpoint |
-| `payments` + `mpesa_transactions` persistence | Dedicated `/payment` step (payment merged into checkout) |
-| Stripe checkout session + webhook (existing) | `Order.payment_status` not set on M-Pesa success |
-| | Checkout/order summary still shows **USD `$`** (not KES) |
-| | No automated tests for M-Pesa flow |
-
-**Checkout flow today:**
+**Checkout flow:**
 
 ```
 Cart → /checkout
-  → Place order (AJAX POST /orders)
-  → if payment_method = mpesa_express
-       → POST /payments/mpesa/initiate
-       → alert + redirect /orders/{id}
-  → else redirect /orders/{id}
+  → POST /orders (AJAX) → creates Order (ORD-YYYY-NNNNN)
+  → if mpesa_express  → POST /payments/mpesa/initiate → STK Push → redirect /orders/{id}/confirmation
+  → if mpesa_paybill  → show Paybill details → customer submits transaction code
+  → if bank_transfer  → show bank details
 ```
 
-Credentials required: `MPESA_CONSUMER_KEY`, `MPESA_CONSUMER_SECRET`, `MPESA_SHORTCODE`, `MPESA_PASSKEY`, `MPESA_CALLBACK_URL`, `MPESA_ENVIRONMENT`.
+### Stage 8 — Order confirmation
+
+| Feature | Notes |
+|---------|-------|
+| `ORD-YYYY-NNNNN` order number | ✅ |
+| Payment status + order status displayed | ✅ |
+| KES order totals | ✅ |
+| Guest order accessible via `session('last_order_id')` | ✅ |
 
 ---
 
-### P5 — Order confirmation + tracking (Stages 8–9) 🟡 / ❌
+## Phase 3 — Order tracking + post-purchase (Stages 9–11) ✅
 
-**Files:** `resources/views/orders/show.blade.php`, `resources/views/checkout/success.blade.php`
+| Feature | File | Notes |
+|---------|------|-------|
+| Order timeline (pending → processing → shipped → delivered) | `orders/show.blade.php` | ✅ |
+| Per-vendor item status | `orders/show.blade.php` | ✅ |
+| Confirm receipt action | Account orders view | ✅ |
+| Product reviews (star rating + text) | `reviews/` views | ✅ |
+| Vendor reviews + feedback | `reviews/` views | ✅ |
+| Buy Again / reorder | Account orders view | ✅ |
 
-| Done | Missing |
+---
+
+## Phase 4 — Customer dashboard ✅
+
+**Base:** `resources/views/components/account-layout.blade.php` (sidebar on desktop, horizontal scrollable tabs on mobile)
+
+| Route | View | Status |
+|-------|------|--------|
+| `/account` | profile | ✅ |
+| `/account/addresses` | address CRUD | ✅ |
+| `/account/orders` | order history | ✅ |
+| `/account/reviews` | my reviews | ✅ |
+| `/account/tire-requests` | tire request history | ✅ |
+
+---
+
+## Remaining work
+
+### Phase 5 — STK Push polling UI ❌
+
+| Item | Notes |
+|------|-------|
+| `GET /orders/{order}/payment-status` JSON endpoint | Returns `{payment_status, status}` for polling |
+| "Waiting for M-Pesa…" spinner on checkout page | JS polls endpoint every 5 s after STK push; auto-redirects on `paid` |
+
+### Phase 6 — Vendor & admin reporting ❌
+
+| Item | File | Notes |
+|------|------|-------|
+| Vendor revenue/sales reports (daily/monthly charts) | `vendor/dashboard.blade.php` | Chart.js or Alpine |
+| Admin product approval queue | Admin controller + view | List pending products, approve/reject |
+| Admin analytics dashboard (GMV, order counts, top products) | `admin/dashboard.blade.php` | Platform-wide stats |
+
+### Phase 7 — Notifications ❌
+
+| Item | Notes |
+|------|-------|
+| Email: order placed → vendor | Laravel Mailable |
+| Email: payment confirmed → customer | Laravel Mailable |
+| Email: order status update → customer | Laravel Mailable |
+| In-app notification bell (navigation) | Laravel `notifications` table + Livewire |
+| Low-stock alert (< 5 units) | Artisan command + notification |
+
+---
+
+## Key files
+
+| File | Purpose |
 |------|---------|
-| Single order view with status badge | Customer order history (`My Orders`) |
-| One timeline step (“Order placed”) | Full timeline: pending → processing → shipped → delivered |
-| Line items with SKU + qty | Per-vendor item status + tracking numbers |
-| Stripe success/cancel pages | `ORD-YYYY-NNNNN` order numbers (still `TM-RANDOM`) |
-| | Auth/ownership guard on `orders.show` |
-| | Payment status displayed on order page |
-| | KES on order view (still `$`) |
-
----
-
-### P6 — Delivery + post-purchase (Stages 10–11) ❌
-
-| Missing |
-|---------|
-| Confirm receipt action |
-| Product reviews (rating + text) |
-| Vendor reviews / feedback |
-| Buy Again / reorder |
-
----
-
-### P7 — Customer dashboard ❌
-
-**Current:** Breeze `dashboard.blade.php` + `profile/edit` only.
-
-**Planned MVP nav (not built):**
-
-```
-/account
-├── profile
-├── addresses
-├── orders
-├── reviews
-└── tire-requests
-```
-
----
-
-## Currency consistency
-
-KES is used in: product cards, PDP, cart.
-
-**Still USD (`$`) in:**
-
-- `resources/views/orders/checkout.blade.php` (order summary sidebar)
-- `resources/views/orders/show.blade.php`
-- `resources/views/vendor/dashboard.blade.php`
-
----
-
-## Livewire components (customer-facing)
-
-| Component | File | Used on |
-|-----------|------|---------|
-| `vehicle-size-finder` | `resources/views/components/⚡vehicle-size-finder.blade.php` | Home |
-| `tire-search` | `resources/views/components/⚡tire-search.blade.php` | Home (compact), Shop (full) |
-| `fitment-checker` | `resources/views/components/⚡fitment-checker.blade.php` | Unused route (redirects to home) |
+| `app/Models/Product.php` | New + used tire fields; `allImages()`, `averageRating()` |
+| `app/Models/User.php` | Vendor methods: `averageVendorRating()`, `vendorReviewCount()` |
+| `app/Models/Order.php` | Master order; `ORD-YYYY-NNNNN` number generation |
+| `app/Models/Payment.php` | Payment record linked to order + mpesa_transactions |
+| `app/Models/MpesaTransaction.php` | Daraja STK log (merchant_request_id, checkout_request_id) |
+| `app/Services/CartService.php` | Session cart logic |
+| `app/Services/OrderService.php` | Order creation + commission calculation |
+| `app/Services/FitmentService.php` | Make/Model/Year → compatible sizes |
+| `app/Http/Controllers/MpesaController.php` | STK initiation, `normalizePhone()`, Daraja callback |
+| `app/Http/Controllers/OrderController.php` | Checkout AJAX + order confirmation |
+| `resources/views/components/⚡tire-search.blade.php` | Main search Livewire (compact + full) |
+| `resources/views/components/⚡vehicle-size-finder.blade.php` | Homepage vehicle search |
+| `resources/views/products/show.blade.php` | Product detail page (gallery, vendor, reviews) |
+| `resources/views/orders/checkout.blade.php` | Checkout + AJAX payment flow |
+| `resources/views/orders/show.blade.php` | Order detail + timeline |
+| `resources/views/components/account-layout.blade.php` | Account dashboard shell (responsive tabs) |
+| `resources/views/vendor/dashboard.blade.php` | Vendor stats (KES) |
 
 ---
 
@@ -268,15 +234,16 @@ KES is used in: product cards, PDP, cart.
 |-------|-------|--------|
 | `/` | 1 | ✅ Dual search |
 | `/shop?size=225/45R17` | 2–3 | ✅ Filtered results |
-| `/products/{product}` | 4 | 🟡 Basic PDP |
-| `/cart` | 5 | 🟡 Session cart |
-| `/checkout` | 6–7 | 🟡 Shipping + payment on one page |
-| `POST /orders` | 6 | ✅ Creates order (JSON or redirect) |
-| `POST /payments/mpesa/initiate` | 7 | 🟡 STK API (needs env) |
-| `POST /payments/mpesa/callback` | 7 | 🟡 Daraja webhook |
-| `/orders/{order}` | 8–9 | 🟡 Minimal view |
-| `/fitment` | 1 | ✅ Redirect → `/#vehicle-search` |
-| `/account/*` | — | ❌ Not implemented |
+| `/products/{product}` | 4 | ✅ Full PDP |
+| `/cart` | 5 | ✅ Session cart |
+| `/checkout` | 6–7 | ✅ Kenya fields + M-Pesa |
+| `POST /orders` | 6 | ✅ Creates `ORD-YYYY-NNNNN` order |
+| `POST /payments/mpesa/initiate` | 7 | ✅ STK Push with phone normalization |
+| `POST /payments/mpesa/callback` | 7 | ✅ Daraja webhook → syncs order status |
+| `/orders/{order}/confirmation` | 8 | ✅ Confirmation page |
+| `/orders/{order}` | 9 | ✅ Timeline + tracking |
+| `/account/*` | — | ✅ Profile, orders, addresses, reviews, requests |
+| `GET /orders/{order}/payment-status` | 7 | ❌ Not yet built (needed for STK polling) |
 
 ---
 
@@ -284,21 +251,9 @@ KES is used in: product cards, PDP, cart.
 
 | Area | Notes |
 |------|-------|
-| Session cart (no DB table) | Per Phase 1 plan |
-| Vendor / admin dashboards | No customer-journey changes |
-| Laravel Breeze auth | Standard registration/login |
-
----
-
-## Recommended next steps
-
-1. **Product details (P2)** — used-tire + vendor trust blocks; highest impact before more checkout work  
-2. **Currency pass** — KES on checkout + order views  
-3. **Checkout Kenya fields** — county, town, landmark, delivery method  
-4. **Payment hardening** — `payment_status` sync, `.env.example`, M-Pesa tests, Paybill UI  
-5. **Order history + timeline (P5)** — close the post-purchase loop  
-6. **Customer dashboard (P7)** — orders, tire requests, addresses  
-7. **Reviews + delivery confirmation (P6)** — retention and trust  
+| Session cart (no DB table) | Per Phase 1 plan — avoids auth dependency |
+| Laravel Breeze auth | Standard registration/login/password reset |
+| Stripe integration | Legacy; M-Pesa is primary payment method |
 
 ---
 
@@ -307,4 +262,5 @@ KES is used in: product cards, PDP, cart.
 | Date | Change |
 |------|--------|
 | 7 Jun 2026 | Initial doc after Phase 1 implementation |
-| 7 Jun 2026 | Re-audit: documented `payments` / `mpesa_transactions` tables, M-Pesa STK API, checkout AJAX flow; corrected payment stage from “not started” to “partial”; noted currency inconsistencies |
+| 7 Jun 2026 | Re-audit: documented payments schema, M-Pesa STK API, checkout AJAX flow |
+| 7 Jun 2026 | Major update: Phases 2–4 complete — PDP gallery, cart UX, checkout Kenya fields, M-Pesa bugs fixed (parse error, SSL, phone normalization, callback linkage), customer dashboard, reviews, order timeline, account mobile nav, vendor dashboard KES |

@@ -115,6 +115,16 @@ class OrderController extends Controller
             ->with('status', 'Order placed successfully.');
     }
 
+    public function paymentStatus(Request $request, Order $order): JsonResponse
+    {
+        $this->authorizeOrder($request, $order);
+
+        return response()->json([
+            'payment_status' => $order->payment_status,
+            'order_status' => $order->status,
+        ]);
+    }
+
     public function confirmation(Request $request, Order $order): View
     {
         $this->authorizeOrder($request, $order);

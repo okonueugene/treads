@@ -166,6 +166,14 @@
         </div>
     </div>
 
+    <div id="mpesa-waiting-overlay"
+         class="fixed inset-0 z-50 hidden flex-col items-center justify-center bg-black/70 text-white text-center p-6">
+        <div class="mb-6 h-16 w-16 rounded-full border-4 border-white border-t-transparent animate-spin"></div>
+        <p class="text-xl font-semibold mb-2">Waiting for M-Pesa confirmation…</p>
+        <p class="text-slate-300 text-sm mb-6">Check your phone and enter your M-Pesa PIN to complete payment.</p>
+        <p id="mpesa-waiting-timer" class="text-slate-400 text-xs"></p>
+    </div>
+
     <script>
         async function postJson(url, body) {
             const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
@@ -181,7 +189,6 @@
             });
             const data = await res.json();
             if (!res.ok) {
-                // Propagate HTTP errors (422 validation, 500, etc.) as throwable
                 throw { status: res.status, data };
             }
             return data;
@@ -190,7 +197,6 @@
         function showError(err) {
             if (err && err.data) {
                 if (err.data.errors) {
-                    // Laravel validation: {message, errors: {field: [msg]}}
                     const msgs = Object.values(err.data.errors).flat().join('\n');
                     alert(msgs);
                 } else {
@@ -199,6 +205,44 @@
             } else {
                 alert('Connection error. Please check your internet and try again.');
             }
+        }
+
+        function showMpesaWaiting(show) {
+            const overlay = document.getElementById('mpesa-waiting-overlay');
+            overlay.classList.toggle('hidden', !show);
+            overlay.classList.toggle('flex', show);
+        }
+
+        async function pollPaymentStatus(orderId, timeoutMs = 90000) {
+            const url = '/orders/' + orderId + '/payment-status';
+            const deadline = Date.now() + timeoutMs;
+            const timerEl = document.getElementById('mpesa-waiting-timer');
+
+            return new Promise((resolve) => {
+                const interval = setInterval(async () => {
+                    const remaining = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+                    if (timerEl) timerEl.textContent = 'Timing out in ' + remaining + 's if not completed…';
+
+                    if (Date.now() >= deadline) {
+                        clearInterval(interval);
+                        resolve('timeout');
+                        return;
+                    }
+
+                    try {
+                        const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+                        if (!res.ok) return;
+                        const data = await res.json();
+                        if (data.payment_status === 'paid') {
+                            clearInterval(interval);
+                            resolve('paid');
+                        } else if (data.payment_status === 'failed') {
+                            clearInterval(interval);
+                            resolve('failed');
+                        }
+                    } catch (_) { /* network hiccup — keep polling */ }
+                }, 5000);
+            });
         }
 
         const btn = document.getElementById('place-order-btn');
@@ -229,14 +273,28 @@
                 const orderResp = await postJson('{{ route('orders.store') }}', payload);
 
                 if (orderResp.next === 'mpesa_express') {
-                    btn.textContent = 'Waiting for M-Pesa…';
+                    btn.textContent = 'Sending STK Push…';
                     try {
                         await postJson('/payments/mpesa/initiate', {
                             order_id: orderResp.order_id,
                             phone_number: payload.payment_phone,
                             amount: orderResp.total,
                         });
-                        // STK push sent — user completes on phone
+
+                        // STK sent — show spinner and poll for callback
+                        showMpesaWaiting(true);
+                        const result = await pollPaymentStatus(orderResp.order_id);
+                        showMpesaWaiting(false);
+
+                        if (result === 'paid') {
+                            window.location = '/orders/' + orderResp.order_id + '/confirmation';
+                            return;
+                        } else if (result === 'failed') {
+                            alert('M-Pesa payment was declined. Your order is saved — you can retry payment from your order page.');
+                        } else {
+                            // timeout
+                            alert('Payment is taking longer than expected. Your order is saved — check your order page for the latest status.');
+                        }
                     } catch (mpesaErr) {
                         const msg = mpesaErr?.data?.error || 'M-Pesa STK push failed. Your order was saved — you can pay manually.';
                         alert(msg);
