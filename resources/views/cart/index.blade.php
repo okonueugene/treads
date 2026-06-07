@@ -45,6 +45,11 @@
                                                 <button type="button" onclick="const i=this.previousElementSibling; if(+i.value<99){i.value=+i.value+1; i.form.requestSubmit()}" class="px-3 py-1 text-slate-400 hover:text-white">+</button>
                                             </div>
                                         </form>
+                                        <form method="POST" action="{{ route('cart.destroy', $line['product']->id) }}">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="text-xs text-slate-500 transition hover:text-red-400" title="Remove">✕ Remove</button>
+                                        </form>
                                         <p class="text-lg font-bold text-white sm:w-28 sm:text-right">{{ format_kes($line['line_total']) }}</p>
                                     </div>
                                 @endforeach
@@ -73,6 +78,38 @@
                     </div>
                 </div>
             </div>
+        @endif
+
+        @if ($savedItems->isNotEmpty())
+            <section class="mt-10">
+                <h2 class="mb-4 text-lg font-semibold text-white">Saved for Later</h2>
+                <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                    @foreach ($savedItems as $saved)
+                        <div class="card overflow-hidden">
+                            <x-product-image :src="$saved->image" :alt="$saved->title" class="h-32 w-full" />
+                            <div class="p-3 space-y-2">
+                                <p class="font-medium text-white text-sm line-clamp-2">{{ $saved->title }}</p>
+                                <p class="text-sm font-bold text-white">{{ format_kes($saved->price) }}</p>
+                                <div class="flex gap-2">
+                                    @if ($saved->stock > 0)
+                                        <form method="POST" action="{{ route('cart.store') }}" class="flex-1">
+                                            @csrf
+                                            <input type="hidden" name="product_id" value="{{ $saved->id }}">
+                                            <button type="submit" class="btn-primary w-full text-xs py-1.5">Move to Cart</button>
+                                        </form>
+                                    @else
+                                        <span class="text-xs text-slate-500 flex-1">Out of stock</span>
+                                    @endif
+                                    <form method="POST" action="{{ route('saved.toggle', $saved) }}">
+                                        @csrf
+                                        <button type="submit" class="text-xs text-slate-500 hover:text-red-400 transition" title="Remove">✕</button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+            </section>
         @endif
     </div>
 </x-app-layout>

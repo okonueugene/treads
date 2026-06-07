@@ -32,8 +32,13 @@
 
                     <div class="flex flex-wrap items-end justify-between gap-3">
                         <p class="text-3xl font-bold text-white">{{ format_kes($product->price) }}</p>
-                        @if ($product->averageRating())
-                            <p class="text-sm text-amber-400">{{ str_repeat('★', (int) round($product->averageRating())) }} <span class="text-slate-400">({{ $product->averageRating() }})</span></p>
+                        @php $rating = $product->averageRating(); $reviewCount = $product->reviews()->where('type', 'product')->count(); @endphp
+                        @if ($rating !== null)
+                            <div class="flex items-center gap-1.5">
+                                @php $full = (int) round($rating); @endphp
+                                <span class="text-amber-400">{{ str_repeat('★', $full) }}{{ str_repeat('☆', 5 - $full) }}</span>
+                                <span class="text-sm text-slate-400">{{ $rating }} ({{ $reviewCount }} {{ Str::plural('review', $reviewCount) }})</span>
+                            </div>
                         @endif
                     </div>
 
@@ -99,9 +104,26 @@
                     @endif
 
                     <div class="rounded-lg border border-slate-700 bg-slate-800/30 p-4">
-                        <h3 class="font-semibold text-white">Vendor</h3>
-                        <p class="mt-1 text-white">{{ $product->vendorDisplayName() }}</p>
-                        <p class="mt-1 text-sm text-slate-400">{{ $product->sold_count }} sold on marketplace</p>
+                        <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-500">Sold by</h3>
+                        <p class="mt-1 text-base font-semibold text-white">{{ $product->vendorDisplayName() }}</p>
+                        @if ($product->vendor)
+                            @php
+                                $vendorRating = $product->vendor->averageVendorRating();
+                                $vendorReviews = $product->vendor->vendorReviewCount();
+                            @endphp
+                            <div class="mt-2 flex flex-wrap items-center gap-3 text-sm">
+                                @if ($vendorRating !== null)
+                                    <span class="text-amber-400">{{ str_repeat('★', (int) round($vendorRating)) }}{{ str_repeat('☆', 5 - (int) round($vendorRating)) }}</span>
+                                    <span class="text-slate-400">{{ $vendorRating }} ({{ $vendorReviews }} {{ Str::plural('review', $vendorReviews) }})</span>
+                                @else
+                                    <span class="text-slate-500 text-xs">No vendor reviews yet</span>
+                                @endif
+                                <span class="text-slate-600">·</span>
+                                <span class="text-slate-400">{{ $product->sold_count }} sold</span>
+                            </div>
+                        @else
+                            <p class="mt-1 text-sm text-slate-400">{{ $product->sold_count }} sold on marketplace</p>
+                        @endif
                     </div>
 
                     @if ($product->description)
@@ -137,6 +159,29 @@
                 </div>
             </div>
         </div>
+
+        @php $productReviews = $product->reviews()->where('type', 'product')->with('user')->latest()->take(6)->get(); @endphp
+        @if ($productReviews->isNotEmpty())
+            <section class="mt-16">
+                <h2 class="mb-6 text-xl font-bold text-white">Customer Reviews</h2>
+                <div class="grid gap-4 sm:grid-cols-2">
+                    @foreach ($productReviews as $review)
+                        <div class="card p-5">
+                            <div class="flex items-start justify-between gap-3">
+                                <div>
+                                    <p class="font-medium text-white">{{ $review->user?->name ?? 'Verified Buyer' }}</p>
+                                    <p class="mt-0.5 text-xs text-slate-500">{{ $review->created_at->format('M j, Y') }}</p>
+                                </div>
+                                <span class="shrink-0 text-amber-400">{{ str_repeat('★', $review->rating) }}{{ str_repeat('☆', 5 - $review->rating) }}</span>
+                            </div>
+                            @if ($review->body)
+                                <p class="mt-3 text-sm text-slate-400">{{ $review->body }}</p>
+                            @endif
+                        </div>
+                    @endforeach
+                </div>
+            </section>
+        @endif
 
         @if ($relatedProducts->isNotEmpty())
             <section class="mt-16">

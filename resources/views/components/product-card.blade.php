@@ -59,6 +59,18 @@
 
         <p class="text-xs text-slate-500">Vendor: {{ $product->vendorDisplayName() }}</p>
 
+        @php $rating = $product->averageRating(); @endphp
+        @if ($rating !== null)
+            @php
+                $full  = (int) round($rating);
+                $count = $product->reviews()->where('type', 'product')->count();
+            @endphp
+            <div class="flex items-center gap-1.5">
+                <span class="text-sm text-amber-400 leading-none">{{ str_repeat('★', $full) }}{{ str_repeat('☆', 5 - $full) }}</span>
+                <span class="text-xs text-slate-500">({{ $count }})</span>
+            </div>
+        @endif
+
         <div class="mt-auto flex items-center justify-between pt-2">
             <p class="text-lg font-bold text-white">{{ format_kes($product->price) }}</p>
             @if ($showAddToCart && $product->stock > 0)

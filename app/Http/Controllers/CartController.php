@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Product;
 use App\Services\CartService;
+use App\Services\SavedItemsService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -12,6 +13,7 @@ class CartController extends Controller
 {
     public function __construct(
         private readonly CartService $cart,
+        private readonly SavedItemsService $saved,
     ) {}
 
     public function index(): View
@@ -20,6 +22,7 @@ class CartController extends Controller
             'lines' => $this->cart->lines(),
             'linesByVendor' => $this->cart->linesGroupedByVendor(),
             'subtotal' => $this->cart->subtotal(),
+            'savedItems' => $this->saved->products(),
         ]);
     }
 

@@ -62,7 +62,7 @@
                                 <td class="px-3 py-3 font-mono text-xs text-slate-400">{{ $product->sku }}</td>
                                 <td class="px-3 py-3 text-white">{{ $product->title }}</td>
                                 <td class="px-3 py-3 text-slate-300">{{ $product->formattedSize() }}</td>
-                                <td class="px-3 py-3 text-white">${{ number_format($product->price, 2) }}</td>
+                                <td class="px-3 py-3 text-white">{{ format_kes($product->price) }}</td>
                                 <td class="px-3 py-3 {{ $product->stock < 5 ? 'text-yellow-400' : 'text-slate-300' }}">{{ $product->stock }}</td>
                             </tr>
                         @empty
@@ -94,8 +94,8 @@
                                 <td class="px-3 py-3 text-white">{{ $item->order->order_number }}</td>
                                 <td class="px-3 py-3 text-slate-300">{{ $item->product_title }}</td>
                                 <td class="px-3 py-3 text-slate-300">{{ $item->quantity }}</td>
-                                <td class="px-3 py-3 text-white">${{ number_format($item->line_total, 2) }}</td>
-                                <td class="px-3 py-3 text-slate-300">${{ number_format($item->commission_amount, 2) }} ({{ $item->commission_rate }}%)</td>
+                                <td class="px-3 py-3 text-white">{{ format_kes($item->line_total) }}</td>
+                                <td class="px-3 py-3 text-slate-300">{{ format_kes($item->commission_amount) }} ({{ $item->commission_rate }}%)</td>
                             </tr>
                         @empty
                             <tr>

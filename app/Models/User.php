@@ -67,6 +67,24 @@ class User extends Authenticatable
         return $this->hasMany(TireRequest::class);
     }
 
+    /** Reviews left about this vendor (type = 'vendor'). */
+    public function vendorReviews(): HasMany
+    {
+        return $this->hasMany(Review::class, 'vendor_id')->where('type', 'vendor');
+    }
+
+    public function averageVendorRating(): ?float
+    {
+        $avg = $this->vendorReviews()->avg('rating');
+
+        return $avg !== null ? round((float) $avg, 1) : null;
+    }
+
+    public function vendorReviewCount(): int
+    {
+        return $this->vendorReviews()->count();
+    }
+
     public function displayName(): string
     {
         return $this->shop_name ?: $this->name;

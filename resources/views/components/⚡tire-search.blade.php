@@ -276,36 +276,47 @@ new class extends Component
 @if ($compact)
     <div class="tire-search-compact">
         <h2 class="text-lg font-semibold text-white">Search By Tire Size</h2>
-        <form wire:submit="searchBySize" class="mt-4 flex flex-wrap items-end gap-3">
-            <div class="flex items-center gap-2">
-                <input
-                    type="number"
-                    wire:model="width"
-                    placeholder="225"
-                    class="input-field w-20 text-center"
-                    min="100"
-                    max="400"
-                >
-                <span class="text-slate-400">/</span>
-                <input
-                    type="number"
-                    wire:model="aspectRatio"
-                    placeholder="45"
-                    class="input-field w-20 text-center"
-                    min="25"
-                    max="90"
-                >
-                <span class="text-slate-400">R</span>
-                <input
-                    type="number"
-                    wire:model="rimDiameter"
-                    placeholder="17"
-                    class="input-field w-20 text-center"
-                    min="10"
-                    max="30"
-                >
+        <form wire:submit="searchBySize" class="mt-4">
+            <div class="flex flex-wrap items-end gap-2 sm:gap-3">
+                <div class="flex items-end gap-1.5">
+                    <div class="text-center">
+                        <span class="mb-1 block text-xs text-slate-400">Width</span>
+                        <input
+                            type="number"
+                            wire:model="width"
+                            placeholder="225"
+                            class="input-field w-[4.5rem] text-center sm:w-20"
+                            min="100"
+                            max="400"
+                        >
+                    </div>
+                    <span class="mb-2.5 text-slate-400">/</span>
+                    <div class="text-center">
+                        <span class="mb-1 block text-xs text-slate-400">Aspect</span>
+                        <input
+                            type="number"
+                            wire:model="aspectRatio"
+                            placeholder="45"
+                            class="input-field w-[4.5rem] text-center sm:w-20"
+                            min="25"
+                            max="90"
+                        >
+                    </div>
+                    <span class="mb-2.5 text-slate-400">R</span>
+                    <div class="text-center">
+                        <span class="mb-1 block text-xs text-slate-400">Rim</span>
+                        <input
+                            type="number"
+                            wire:model="rimDiameter"
+                            placeholder="17"
+                            class="input-field w-[4.5rem] text-center sm:w-20"
+                            min="10"
+                            max="30"
+                        >
+                    </div>
+                </div>
+                <button type="submit" class="btn-primary">Search Tires</button>
             </div>
-            <button type="submit" class="btn-primary">Search</button>
         </form>
         @error('width') <p class="mt-2 text-sm text-red-400">{{ $message }}</p> @enderror
     </div>
@@ -348,8 +359,15 @@ new class extends Component
                     <p class="text-sm text-slate-400">{{ $vehicleMake }} {{ $vehicleModel }} {{ $vehicleYear }}</p>
                 @endif
             </div>
-            <div class="flex items-center gap-3 lg:hidden">
+            <div class="flex items-center gap-2 lg:hidden">
                 <p class="text-sm text-slate-400">{{ $products->total() }} results</p>
+                <select wire:model.live="sort" class="input-field py-1.5 text-sm">
+                    <option value="price_asc">Price ↑</option>
+                    <option value="price_desc">Price ↓</option>
+                    <option value="newest">Newest</option>
+                    <option value="sold">Popular</option>
+                    <option value="title_asc">Name A–Z</option>
+                </select>
                 <button type="button" @click="filtersOpen = true" class="btn-secondary text-sm">Filters</button>
             </div>
         </div>
