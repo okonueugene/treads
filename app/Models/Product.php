@@ -45,6 +45,7 @@ class Product extends Model
         'speed_rating',
         'season',
         'image',
+        'images',
         'is_active',
     ];
 
@@ -57,7 +58,22 @@ class Product extends Model
             'is_active' => 'boolean',
             'is_verified' => 'boolean',
             'sold_count' => 'integer',
+            'images' => 'array',
         ];
+    }
+
+    /**
+     * Returns all gallery image URLs: primary first, then additional images.
+     * Always returns at least one entry (the primary image placeholder).
+     *
+     * @return array<int, string>
+     */
+    public function allImages(): array
+    {
+        $primary = $this->image ? product_image_url($this->image) : asset('images/placeholder-tire.svg');
+        $extra = array_map(fn ($img) => product_image_url($img), $this->images ?? []);
+
+        return array_values(array_unique(array_filter(array_merge([$primary], $extra))));
     }
 
     public function isUsed(): bool

@@ -141,9 +141,13 @@ class MpesaController extends Controller
         }
 
         // Get OAuth token
-        $authUrl = $envMode === 'production' ? 'https://api.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials' : 'https://sandbox.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials';
+        $authUrl = $envMode === 'production'
+            ? 'https://api.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials'
+            : 'https://sandbox.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials';
 
-        $tokenResp = Http::withBasicAuth($consumerKey, $consumerSecret)->get($authUrl);
+        $tokenResp = Http::withBasicAuth($consumerKey, $consumerSecret)
+            ->when($envMode !== 'production', fn ($http) => $http->withoutVerifying())
+            ->get($authUrl);
         if (! $tokenResp->ok()) {
             Log::error('Failed to get mpesa token', ['resp' => $tokenResp->body()]);
             return response()->json(['error' => 'Failed to get MPESA token'], 500);
@@ -157,7 +161,9 @@ class MpesaController extends Controller
         // Prepare STK push payload
         $timestamp = now()->format('YmdHis');
         $password = base64_encode($shortcode.$passkey.$timestamp);
-        $lipaUrl = $envMode === 'production' ? 'https://api.safaricom.co.ke/mpesa/stkpush/v1/processrequest' : 'https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest';
+        $lipaUrl = $envMode === 'production'
+            ? 'https://api.safaricom.co.ke/mpesa/stkpush/v1/processrequest'
+            : 'https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest';
 
         $payload = [
             'BusinessShortCode' => $shortcode,
@@ -173,7 +179,9 @@ class MpesaController extends Controller
             'TransactionDesc' => 'Payment for order '.$order->id,
         ];
 
-        $resp = Http::withToken($access)->post($lipaUrl, $payload);
+        $resp = Http::withToken($access)
+            ->when($envMode !== 'production', fn ($http) => $http->withoutVerifying())
+            ->post($lipaUrl, $payload);
 
         if (! $resp->ok()) {
             Log::error('STK push failed', ['resp' => $resp->body()]);

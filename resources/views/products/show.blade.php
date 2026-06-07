@@ -8,9 +8,15 @@
         <h1 class="text-2xl font-bold text-white">{{ $product->title }}</h1>
     </x-slot>
 
-    <div class="page-container py-8" x-data="{ image: '{{ product_image_url($product->image) }}' }">
+    @php $galleryImages = $product->allImages(); @endphp
+    <div class="page-container py-8" x-data="{
+        images: {{ Js::from($galleryImages) }},
+        active: 0,
+        get current() { return this.images[this.active] ?? this.images[0]; }
+    }">
         <div class="grid gap-8 lg:grid-cols-2">
-            <div class="space-y-4">
+            <div class="space-y-3">
+                {{-- Main image --}}
                 <div class="card relative overflow-hidden">
                     @if ($product->isUsed())
                         <span class="absolute left-4 top-4 z-10 rounded-full bg-amber-500 px-3 py-1 text-xs font-semibold text-slate-900">Used Tire</span>
@@ -20,8 +26,24 @@
                     @if ($product->is_verified)
                         <span class="absolute right-4 top-4 z-10 rounded-full bg-green-500 px-3 py-1 text-xs font-semibold text-white">Verified Listing</span>
                     @endif
-                    <img :src="image" alt="{{ $product->title }}" class="aspect-square w-full object-cover">
+                    <img :src="current" :key="current" alt="{{ $product->title }}" class="aspect-square w-full object-cover transition-opacity duration-200">
                 </div>
+
+                {{-- Thumbnail strip — only shown when there are multiple images --}}
+                @if (count($galleryImages) > 1)
+                    <div class="flex gap-2 overflow-x-auto pb-1">
+                        <template x-for="(img, i) in images" :key="i">
+                            <button
+                                type="button"
+                                @click="active = i"
+                                :class="active === i ? 'ring-2 ring-brand-500 ring-offset-2 ring-offset-slate-900' : 'opacity-60 hover:opacity-100'"
+                                class="h-16 w-16 shrink-0 overflow-hidden rounded-lg transition"
+                            >
+                                <img :src="img" alt="" class="h-full w-full object-cover">
+                            </button>
+                        </template>
+                    </div>
+                @endif
             </div>
 
             <div class="lg:sticky lg:top-24 lg:self-start space-y-6">
