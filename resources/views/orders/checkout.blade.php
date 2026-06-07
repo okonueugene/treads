@@ -166,14 +166,6 @@
         </div>
     </div>
 
-    <div id="mpesa-waiting-overlay"
-         class="fixed inset-0 z-50 hidden flex-col items-center justify-center bg-black/70 text-white text-center p-6">
-        <div class="mb-6 h-16 w-16 rounded-full border-4 border-white border-t-transparent animate-spin"></div>
-        <p class="text-xl font-semibold mb-2">Waiting for M-Pesa confirmation…</p>
-        <p class="text-slate-300 text-sm mb-6">Check your phone and enter your M-Pesa PIN to complete payment.</p>
-        <p id="mpesa-waiting-timer" class="text-slate-400 text-xs"></p>
-    </div>
-
     <script>
         async function postJson(url, body) {
             const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
@@ -194,34 +186,36 @@
             return data;
         }
 
-        function showError(err) {
+        async function showError(err) {
+            let message = 'Connection error. Please check your internet and try again.';
             if (err && err.data) {
                 if (err.data.errors) {
-                    const msgs = Object.values(err.data.errors).flat().join('\n');
-                    alert(msgs);
+                    message = Object.values(err.data.errors).flat().join('<br>');
                 } else {
-                    alert(err.data.error || err.data.message || 'Something went wrong. Please try again.');
+                    message = err.data.error || err.data.message || 'Something went wrong. Please try again.';
                 }
-            } else {
-                alert('Connection error. Please check your internet and try again.');
             }
-        }
-
-        function showMpesaWaiting(show) {
-            const overlay = document.getElementById('mpesa-waiting-overlay');
-            overlay.classList.toggle('hidden', !show);
-            overlay.classList.toggle('flex', show);
+            await Swal.fire({
+                icon: 'error',
+                title: 'Oops!',
+                html: message,
+                confirmButtonColor: '#ef4444',
+            });
         }
 
         async function pollPaymentStatus(orderId, timeoutMs = 90000) {
             const url = '/orders/' + orderId + '/payment-status';
             const deadline = Date.now() + timeoutMs;
-            const timerEl = document.getElementById('mpesa-waiting-timer');
 
             return new Promise((resolve) => {
                 const interval = setInterval(async () => {
                     const remaining = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
-                    if (timerEl) timerEl.textContent = 'Timing out in ' + remaining + 's if not completed…';
+
+                    // Update the SweetAlert2 html with countdown
+                    const el = Swal.getHtmlContainer();
+                    if (el) {
+                        el.querySelector('#swal-timer').textContent = 'Timing out in ' + remaining + 's if not completed…';
+                    }
 
                     if (Date.now() >= deadline) {
                         clearInterval(interval);
@@ -281,23 +275,53 @@
                             amount: orderResp.total,
                         });
 
-                        // STK sent — show spinner and poll for callback
-                        showMpesaWaiting(true);
+                        // STK sent — show Swal loading dialog and poll for callback
+                        Swal.fire({
+                            title: 'Waiting for M-Pesa…',
+                            html: '<p class="text-sm text-gray-600 mb-3">Check your phone and enter your M-Pesa PIN to complete payment.</p><p id="swal-timer" class="text-xs text-gray-400"></p>',
+                            allowOutsideClick: false,
+                            allowEscapeKey: false,
+                            showConfirmButton: false,
+                            didOpen: () => Swal.showLoading(),
+                        });
+
                         const result = await pollPaymentStatus(orderResp.order_id);
-                        showMpesaWaiting(false);
+                        Swal.close();
 
                         if (result === 'paid') {
+                            await Swal.fire({
+                                icon: 'success',
+                                title: 'Payment confirmed!',
+                                text: 'Redirecting to your order…',
+                                timer: 1800,
+                                showConfirmButton: false,
+                            });
                             window.location = '/orders/' + orderResp.order_id + '/confirmation';
                             return;
                         } else if (result === 'failed') {
-                            alert('M-Pesa payment was declined. Your order is saved — you can retry payment from your order page.');
+                            await Swal.fire({
+                                icon: 'warning',
+                                title: 'Payment declined',
+                                text: 'Your M-Pesa payment was declined. Your order is saved — you can retry payment from your order page.',
+                                confirmButtonColor: '#f59e0b',
+                            });
                         } else {
-                            // timeout
-                            alert('Payment is taking longer than expected. Your order is saved — check your order page for the latest status.');
+                            await Swal.fire({
+                                icon: 'info',
+                                title: 'Payment pending',
+                                text: 'Payment is taking longer than expected. Your order is saved — check your order page for the latest status.',
+                                confirmButtonColor: '#3b82f6',
+                            });
                         }
                     } catch (mpesaErr) {
+                        Swal.close();
                         const msg = mpesaErr?.data?.error || 'M-Pesa STK push failed. Your order was saved — you can pay manually.';
-                        alert(msg);
+                        await Swal.fire({
+                            icon: 'error',
+                            title: 'STK Push Failed',
+                            text: msg,
+                            confirmButtonColor: '#ef4444',
+                        });
                     }
                 }
 
@@ -306,7 +330,7 @@
             } catch (err) {
                 btn.disabled = false;
                 btn.textContent = 'Place order & pay';
-                showError(err);
+                await showError(err);
             }
         });
     </script>

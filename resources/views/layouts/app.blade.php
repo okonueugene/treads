@@ -12,6 +12,10 @@
 
         @vite(['resources/css/app.css', 'resources/js/app.js'])
         @livewireStyles
+
+        {{-- SweetAlert2 --}}
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+        <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js"></script>
     </head>
     <body class="font-sans antialiased">
         <div class="flex min-h-screen flex-col bg-surface">
