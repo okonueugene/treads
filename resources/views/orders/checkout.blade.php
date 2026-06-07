@@ -178,10 +178,31 @@
                 },
                 body: JSON.stringify(body || {}),
             });
-            return res.json();
+            const data = await res.json();
+            if (!res.ok) {
+                // Propagate HTTP errors (422 validation, 500, etc.) as throwable
+                throw { status: res.status, data };
+            }
+            return data;
         }
 
-        document.getElementById('place-order-btn').addEventListener('click', async function () {
+        function showError(err) {
+            if (err && err.data) {
+                if (err.data.errors) {
+                    // Laravel validation: {message, errors: {field: [msg]}}
+                    const msgs = Object.values(err.data.errors).flat().join('\n');
+                    alert(msgs);
+                } else {
+                    alert(err.data.error || err.data.message || 'Something went wrong. Please try again.');
+                }
+            } else {
+                alert('Connection error. Please check your internet and try again.');
+            }
+        }
+
+        const btn = document.getElementById('place-order-btn');
+
+        btn.addEventListener('click', async function () {
             const form = document.getElementById('checkout-form');
             const paymentMethod = form.querySelector('[name="payment_method"]:checked').value;
             const payload = {
@@ -200,27 +221,34 @@
                     : document.getElementById('transaction_code_bank')?.value,
             };
 
-            const orderResp = await postJson('{{ route('orders.store') }}', payload);
-            if (orderResp.error) {
-                alert(orderResp.error);
-                return;
-            }
+            btn.disabled = true;
+            btn.textContent = 'Placing order…';
 
-            if (orderResp.next === 'mpesa_express') {
-                const mpesaResp = await postJson('/payments/mpesa/initiate', {
-                    order_id: orderResp.order_id,
-                    phone_number: payload.payment_phone,
-                    amount: orderResp.total,
-                });
-                if (mpesaResp.error) {
-                    alert('Failed to initiate M-Pesa: ' + mpesaResp.error);
-                    window.location = '/orders/' + orderResp.order_id + '/confirmation';
-                    return;
+            try {
+                const orderResp = await postJson('{{ route('orders.store') }}', payload);
+
+                if (orderResp.next === 'mpesa_express') {
+                    btn.textContent = 'Waiting for M-Pesa…';
+                    try {
+                        await postJson('/payments/mpesa/initiate', {
+                            order_id: orderResp.order_id,
+                            phone_number: payload.payment_phone,
+                            amount: orderResp.total,
+                        });
+                        // STK push sent — user completes on phone
+                    } catch (mpesaErr) {
+                        const msg = mpesaErr?.data?.error || 'M-Pesa STK push failed. Your order was saved — you can pay manually.';
+                        alert(msg);
+                    }
                 }
-                alert('M-Pesa STK push sent. Complete payment on your phone.');
-            }
 
-            window.location = '/orders/' + orderResp.order_id + '/confirmation';
+                window.location = '/orders/' + orderResp.order_id + '/confirmation';
+
+            } catch (err) {
+                btn.disabled = false;
+                btn.textContent = 'Place order & pay';
+                showError(err);
+            }
         });
     </script>
 </x-app-layout>
