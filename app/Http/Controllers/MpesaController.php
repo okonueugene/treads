@@ -119,12 +119,18 @@ class MpesaController extends Controller
 
         $order = \App\Models\Order::find($request->order_id);
 
+        // Normalize phone number to 254XXXXXXXXX (Daraja requirement)
+        $phone = $this->normalizePhone($request->phone_number);
+        if (! $phone) {
+            return response()->json(['error' => 'Invalid phone number. Use format 0712345678 or 254712345678.'], 422);
+        }
+
         // create payment record
         $payment = Payment::create([
             'order_id' => $order->id,
             'method' => 'mpesa_express',
             'amount' => $request->amount,
-            'phone_number' => $request->phone_number,
+            'phone_number' => $phone,
             'status' => 'initiated',
         ]);
 
@@ -171,9 +177,9 @@ class MpesaController extends Controller
             'Timestamp' => $timestamp,
             'TransactionType' => 'CustomerPayBillOnline',
             'Amount' => (int) round($request->amount),
-            'PartyA' => $request->phone_number,
+            'PartyA' => $phone,
             'PartyB' => $shortcode,
-            'PhoneNumber' => $request->phone_number,
+            'PhoneNumber' => $phone,
             'CallBackURL' => $callbackUrl,
             'AccountReference' => 'ORDER-'.$order->id,
             'TransactionDesc' => 'Payment for order '.$order->id,
@@ -205,5 +211,39 @@ class MpesaController extends Controller
         $payment->update(['status' => 'initiated', 'gateway_response' => $json, 'checkout_request_id' => $json['CheckoutRequestID'] ?? null]);
 
         return response()->json(['status' => 'initiated', 'checkout_request_id' => $json['CheckoutRequestID'] ?? null, 'payment_id' => $payment->id]);
+    }
+
+    /**
+     * Normalize a Kenyan phone number to 254XXXXXXXXX format for Daraja.
+     *
+     * Accepts: 0712345678 | +254712345678 | 254712345678 | 712345678
+     * Returns null if the number doesn't look like a valid Kenyan mobile number.
+     */
+    protected function normalizePhone(string $phone): ?string
+    {
+        // Strip spaces, dashes, parentheses
+        $phone = preg_replace('/[\s\-()]/', '', $phone);
+
+        // +254XXXXXXXXX → 254XXXXXXXXX
+        if (str_starts_with($phone, '+254')) {
+            $phone = '254' . substr($phone, 4);
+        }
+
+        // 0XXXXXXXXX → 254XXXXXXXXX
+        if (str_starts_with($phone, '0') && strlen($phone) === 10) {
+            $phone = '254' . substr($phone, 1);
+        }
+
+        // 7XXXXXXXX or 1XXXXXXXX (9 digits, no prefix)
+        if (preg_match('/^[71]\d{8}$/', $phone)) {
+            $phone = '254' . $phone;
+        }
+
+        // Validate final form: 2547XXXXXXXX or 2541XXXXXXXX (12 digits)
+        if (preg_match('/^254[71]\d{8}$/', $phone)) {
+            return $phone;
+        }
+
+        return null;
     }
 }

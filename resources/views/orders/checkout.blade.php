@@ -103,6 +103,7 @@
                             <div>
                                 <x-input-label for="payment_phone" value="M-Pesa phone number" />
                                 <x-text-input id="payment_phone" name="payment_phone" class="mt-1 block w-full" placeholder="0712345678" />
+                                <p class="mt-1 text-xs text-slate-500">Enter your Safaricom number. We accept 0712…, +254712…, or 254712… formats.</p>
                             </div>
                         </div>
 
